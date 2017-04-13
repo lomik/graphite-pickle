@@ -130,3 +130,19 @@ func TestParseMessage(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkParseMessage(b *testing.B) {
+	goodPickles := [][]byte{
+		[]byte("(lp0\n(S'param1'\np1\n(I1423931224\nF60.2\ntp2\ntp3\na."),
+		[]byte("(lp0\n(S'param1'\np1\n(I1423931224\nF60.2\ntp2\n(I1423931225\nF50.2\ntp3\n(I1423931226\nF40.2\ntp4\ntp5\na."),
+		[]byte("(lp0\n(S'param1'\np1\n(I1423931224\nF60.2\ntp2\ntp3\na(S'param2'\np4\n(I1423931224\nI-15\ntp5\ntp6\na."),
+		[]byte("(lp0\n(S'param1'\np1\n(I1423931224\nF60.2\ntp2\n(I1423931284\nI42\ntp3\ntp4\na(S'param2'\np5\n(I1423931224\nI-15\ntp6\ntp7\na."),
+	}
+	// run the Fib function b.N times
+	for n := 0; n < b.N; n++ {
+		err := ParseMessage(goodPickles[n%len(goodPickles)], func(string, float64, int64) {})
+		if err != nil {
+			b.Fatalf("Error raised while benchmarking")
+		}
+	}
+}
