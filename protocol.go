@@ -63,6 +63,11 @@ func ParseMessage(pkt []byte, callback func(string, float64, int64)) error {
 				return BadPickleError
 			}
 
+			if math.IsNaN(value) || math.IsInf(value, 0) {
+				// silent skip NaN
+				continue
+			}
+
 			callback(name, value, timestamp)
 		}
 	}
