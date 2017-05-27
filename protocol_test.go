@@ -1,6 +1,9 @@
 package pickle
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestParseMessage(t *testing.T) {
 	table := []([]struct {
@@ -131,6 +134,108 @@ func TestParseMessage(t *testing.T) {
 	}
 }
 
+func TestMarshalMessage(t *testing.T) {
+	unmarshalMessages := func(pkt []byte) ([]Message, error) {
+		var msgs []Message
+		err := ParseMessage(pkt, func(name string, value float64, timestamp int64) {
+			if len(msgs) > 0 && name == msgs[len(msgs)-1].Name {
+				msg := &msgs[len(msgs)-1]
+				msg.Points = append(msg.Points,
+					DataPoint{Timestamp: timestamp, Value: value})
+			} else {
+				msgs = append(msgs, Message{
+					Name:   name,
+					Points: []DataPoint{{Timestamp: timestamp, Value: value}},
+				})
+			}
+
+		})
+		if err != nil {
+			return nil, err
+		}
+		return msgs, nil
+	}
+
+	table := []struct {
+		msgs []Message
+	}{
+		{
+			// One metric with one datapoint
+			// [("param1", (1423931224, 60.2))]
+			msgs: []Message{
+				{
+					Name:   "hello.world",
+					Points: []DataPoint{{Timestamp: 1452200952, Value: 42}},
+				},
+			},
+		},
+		{
+			// One metric with one datapoint
+			// [("param1", (1423931224, 60.2), (1423931225, 50.2), (1423931226, 40.2))]
+			msgs: []Message{
+				{
+					Name:   "param1",
+					Points: []DataPoint{{Timestamp: 1423931224, Value: 60.2}},
+				},
+			},
+		},
+		{
+			// One metric with multiple datapoints
+			msgs: []Message{
+				{
+					Name: "param1",
+					Points: []DataPoint{
+						{Timestamp: 1423931224, Value: 60.2},
+						{Timestamp: 1423931225, Value: 50.2},
+						{Timestamp: 1423931226, Value: 40.2},
+					},
+				},
+			},
+		},
+		{
+			// Multiple metrics with single datapoints
+			// [("param1", (1423931224, 60.2)), ("param2", (1423931224, -15))]
+			msgs: []Message{
+				{
+					Name:   "param1",
+					Points: []DataPoint{{Timestamp: 1423931224, Value: 60.2}},
+				},
+				{
+					Name:   "param2",
+					Points: []DataPoint{{Timestamp: 1423931224, Value: -15}},
+				},
+			},
+		},
+		{
+			// Complex update
+			// [("param1", (1423931224, 60.2), (1423931284, 42)), ("param2", (1423931224, -15))]
+			msgs: []Message{
+				{
+					Name: "param1",
+					Points: []DataPoint{
+						{Timestamp: 1423931224, Value: 60.2},
+						{Timestamp: 1423931284, Value: 42},
+					},
+				},
+				{
+					Name:   "param2",
+					Points: []DataPoint{{Timestamp: 1423931224, Value: -15}},
+				},
+			},
+		},
+	}
+	for testIndex, tt := range table {
+		data, err := MarshalMessages(tt.msgs)
+		if err != nil {
+			t.Fatalf("error during marshaling message, test %#d", testIndex)
+		}
+		got, err := unmarshalMessages(data)
+		if !reflect.DeepEqual(got, tt.msgs) {
+			t.Errorf("%#v != %#v, test %#d", got, tt.msgs, testIndex)
+		}
+	}
+}
+
 func BenchmarkParseMessage(b *testing.B) {
 	goodPickles := [][]byte{
 		[]byte("(lp0\n(S'param1'\np1\n(I1423931224\nF60.2\ntp2\ntp3\na."),
@@ -141,6 +246,71 @@ func BenchmarkParseMessage(b *testing.B) {
 	// run the Fib function b.N times
 	for n := 0; n < b.N; n++ {
 		err := ParseMessage(goodPickles[n%len(goodPickles)], func(string, float64, int64) {})
+		if err != nil {
+			b.Fatalf("Error raised while benchmarking")
+		}
+	}
+}
+
+func BenchmarkMarshalMessages(b *testing.B) {
+	messagesList := [][]Message{
+		// One metric with one datapoint
+		// [("param1", (1423931224, 60.2))]
+		{
+			{
+				Name:   "hello.world",
+				Points: []DataPoint{{Timestamp: 1452200952, Value: 42}},
+			},
+		},
+		// One metric with one datapoint
+		// [("param1", (1423931224, 60.2), (1423931225, 50.2), (1423931226, 40.2))]
+		{
+			{
+				Name:   "param1",
+				Points: []DataPoint{{Timestamp: 1423931224, Value: 60.2}},
+			},
+		},
+		// One metric with multiple datapoints
+		{
+			{
+				Name: "param1",
+				Points: []DataPoint{
+					{Timestamp: 1423931224, Value: 60.2},
+					{Timestamp: 1423931225, Value: 50.2},
+					{Timestamp: 1423931226, Value: 40.2},
+				},
+			},
+		},
+		// Multiple metrics with single datapoints
+		// [("param1", (1423931224, 60.2)), ("param2", (1423931224, -15))]
+		{
+			{
+				Name:   "param1",
+				Points: []DataPoint{{Timestamp: 1423931224, Value: 60.2}},
+			},
+			{
+				Name:   "param2",
+				Points: []DataPoint{{Timestamp: 1423931224, Value: -15}},
+			},
+		},
+		// Complex update
+		// [("param1", (1423931224, 60.2), (1423931284, 42)), ("param2", (1423931224, -15))]
+		{
+			{
+				Name: "param1",
+				Points: []DataPoint{
+					{Timestamp: 1423931224, Value: 60.2},
+					{Timestamp: 1423931284, Value: 42},
+				},
+			},
+			{
+				Name:   "param2",
+				Points: []DataPoint{{Timestamp: 1423931224, Value: -15}},
+			},
+		},
+	}
+	for n := 0; n < b.N; n++ {
+		_, err := MarshalMessages(messagesList[n%len(messagesList)])
 		if err != nil {
 			b.Fatalf("Error raised while benchmarking")
 		}
