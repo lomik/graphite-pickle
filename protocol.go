@@ -74,3 +74,36 @@ func ParseMessage(pkt []byte, callback func(string, float64, int64)) error {
 
 	return nil
 }
+
+// Message has a metric name and multiple data points.
+type Message struct {
+	Name   string
+	Points []DataPoint
+}
+
+// DataPoint represents a data point which has a timestamp and a value.
+type DataPoint struct {
+	Timestamp int64
+	Value     float64
+}
+
+// MarshalMessages marshals multiple messages to bytes.
+func MarshalMessages(msgs []Message) ([]byte, error) {
+	series := make([]interface{}, len(msgs))
+	for i, msg := range msgs {
+		pts := make([]interface{}, 1+len(msg.Points))
+		pts[0] = msg.Name
+		for j, p := range msg.Points {
+			pts[j+1] = []interface{}{p.Timestamp, p.Value}
+		}
+		series[i] = pts
+	}
+
+	var buf bytes.Buffer
+	enc := ogórek.NewEncoder(&buf)
+	err := enc.Encode(series)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
