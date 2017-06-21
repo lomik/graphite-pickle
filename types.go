@@ -1,6 +1,8 @@
 package pickle
 
 import (
+	"math/big"
+
 	"github.com/lomik/og-rek"
 )
 
@@ -14,6 +16,20 @@ func ToList(value interface{}) ([]interface{}, bool) {
 	}
 
 	return nil, false
+}
+
+func ToMap(value interface{}) (map[interface{}]interface{}, bool) {
+	if l, ok := value.(map[interface{}]interface{}); ok {
+		return l, ok
+	}
+	return nil, false
+}
+
+func ToString(value interface{}) (string, bool) {
+	if l, ok := value.(string); ok {
+		return l, ok
+	}
+	return "", false
 }
 
 func ToInt64(value interface{}) (int64, bool) {
@@ -42,6 +58,16 @@ func ToInt64(value interface{}) (int64, bool) {
 		return int64(value), true
 	case uint8:
 		return int64(value), true
+	case *big.Int:
+		return value.Int64(), true
+	case *big.Float:
+		v, _ := value.Int64()
+		return v, true
+	case big.Int:
+		return value.Int64(), true
+	case big.Float:
+		v, _ := value.Int64()
+		return v, true
 	default:
 		return 0, false
 	}
@@ -73,6 +99,16 @@ func ToFloat64(value interface{}) (float64, bool) {
 		return float64(value), true
 	case uint8:
 		return float64(value), true
+	case *big.Int:
+		return float64(value.Int64()), true
+	case *big.Float:
+		v, _ := value.Float64()
+		return v, true
+	case big.Int:
+		return float64(value.Int64()), true
+	case big.Float:
+		v, _ := value.Float64()
+		return v, true
 	default:
 		return 0, false
 	}

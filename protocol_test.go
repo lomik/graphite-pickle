@@ -51,6 +51,12 @@ func TestParseMessage(t *testing.T) {
 			{"param2", -15, 1423931224},
 		},
 		{
+			// long value
+			// https://github.com/lomik/go-carbon/issues/182
+			{"\x80\x02]q\x00U(hostname.interface-eth_lan2.if_octets.rxq\x01J\xe3\x91JY\x8a\x04S\xab\x8a\x00\x86q\x02\x86q\x03a.", 0, 0},
+			{"hostname.interface-eth_lan2.if_octets.rx", 9087827.0, 1498059235},
+		},
+		{
 			// bad #0 empty
 			{"", 0, 0},
 			{"", 0, 0},
