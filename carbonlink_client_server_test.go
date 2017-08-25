@@ -47,6 +47,19 @@ func TestCarbonlinkClientServer(t *testing.T) {
 			t.Errorf("%#v (actual) != %#v (expected)", res, v)
 		}
 	}
+
+	keys := []string{"hello.world", "m1"}
+
+	res, err := client.CacheQueryMulti(context.Background(), keys)
+	if err != nil {
+		t.FailNow()
+	}
+
+	for _, k := range keys {
+		if !reflect.DeepEqual(res[k], cache[k]) {
+			t.Errorf("%#v (actual) != %#v (expected)", res[k], cache[k])
+		}
+	}
 }
 
 func TestStopCarbonlinkServer(t *testing.T) {

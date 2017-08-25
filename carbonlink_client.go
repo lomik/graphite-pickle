@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/lomik/graphite-pickle/framing"
@@ -58,10 +59,13 @@ func (client *CarbonlinkClient) connect(ctx context.Context) (net.Conn, error) {
 }
 
 func (client *CarbonlinkClient) keepalive(conn net.Conn) {
+	conn.SetDeadline(time.Time{})
+
 	select {
 	case client.pool <- conn:
 		// pass
 	default:
+		conn.Close()
 	}
 }
 
@@ -118,7 +122,6 @@ RetryLoop:
 			conn.Close()
 			continue RetryLoop
 		}
-		conn.SetDeadline(time.Time{})
 		client.keepalive(conn)
 
 		// data received
@@ -126,6 +129,76 @@ RetryLoop:
 	}
 
 	return nil, errors.New("cache query failed")
+}
+
+func (client *CarbonlinkClient) CacheQueryMulti(ctx context.Context, metrics []string) (map[string][]DataPoint, error) {
+	result := make(map[string][]DataPoint)
+	var rm sync.Mutex
+
+	var wg sync.WaitGroup
+	threads := len(metrics)
+	if threads > client.threads {
+		threads = client.threads
+	}
+
+	queue := make(chan string, len(metrics))
+	errors := make(chan error, 1)
+
+	for i := 0; i < threads; i++ {
+		wg.Add(1)
+		go func() {
+			for {
+				if ctx.Err() != nil {
+					break
+				}
+
+				m, ok := <-queue
+				if !ok {
+					break
+				}
+
+				res, err := client.CacheQuery(ctx, m)
+
+				if res != nil {
+					rm.Lock()
+					result[m] = res
+					rm.Unlock()
+				}
+
+				if err != nil {
+					select {
+					case errors <- err:
+						// pass
+					default:
+						// pass
+					}
+				}
+
+			}
+			wg.Done()
+		}()
+	}
+
+	for i := 0; i < len(metrics); i++ {
+		queue <- metrics[i]
+	}
+	close(queue)
+
+	wg.Wait()
+
+	var err error
+	select {
+	case err = <-errors:
+		// pass
+	default:
+		// pass
+	}
+
+	if err == nil {
+		err = ctx.Err()
+	}
+
+	return result, err
 }
 
 func unpackCacheQueryReply(body []byte) ([]DataPoint, error) {
