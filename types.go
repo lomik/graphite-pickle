@@ -2,6 +2,7 @@ package pickle
 
 import (
 	"math/big"
+	"strconv"
 
 	"github.com/lomik/og-rek"
 )
@@ -58,6 +59,12 @@ func ToInt64(value interface{}) (int64, bool) {
 		return int64(value), true
 	case uint8:
 		return int64(value), true
+	case string:
+		v, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return 0, false
+		}
+		return v, true
 	case *big.Int:
 		return value.Int64(), true
 	case *big.Float:
@@ -99,6 +106,12 @@ func ToFloat64(value interface{}) (float64, bool) {
 		return float64(value), true
 	case uint8:
 		return float64(value), true
+	case string:
+		v, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return 0, false
+		}
+		return v, true
 	case *big.Int:
 		return float64(value.Int64()), true
 	case *big.Float:

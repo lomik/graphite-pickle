@@ -111,6 +111,10 @@ func TestParseMessage(t *testing.T) {
 			{"\x80\x02]q\x00U\x0bhello.worldq\x01GA\xd5\xa3\xb4\xfe\x00\x00\x00G@E\x00\x00\x00\x00\x00\x00\x86q\x02\x86q\x03a.", 0, 0},
 			{"hello.world", 42, 1452200952},
 		},
+		{ // https://github.com/lomik/go-carbon/issues/216
+			{"(l(S'param1'\n(L1423931224L\nS'60.2'\ntta.", 0, 0},
+			{"param1", 60.2, 1423931224},
+		},
 	}
 
 	for testIndex, tt := range table {
